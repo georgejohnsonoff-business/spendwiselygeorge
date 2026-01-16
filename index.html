@@ -115,7 +115,7 @@
     </div>
 
     <script>
-        // *** CONFIG: YOUR BASE URL ***
+        // *** CONFIG: YOUR EXACT DEPLOYMENT URL ***
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTLunx5M42joN_PLbDkHEKJH_bFHJe4Mg0HYBlIMnV7qEC4-xQxcgURPNPCdMp2NIGYA/exec";
         
         let appData = { balance: 0, expenses: [], budget: 350, privacy: true };
@@ -141,7 +141,6 @@
             try {
                 const res = await fetch(SCRIPT_URL);
                 const data = await res.json();
-                console.log("Data fetched:", data); // Debug log
                 appData.balance = parseFloat(data.balance) || 0;
                 appData.expenses = data.expenses || [];
                 appData.budget = parseFloat(data.budget) || 350;
