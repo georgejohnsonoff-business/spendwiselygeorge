@@ -258,7 +258,8 @@
            const list = document.getElementById('txList');
            list.innerHTML = '';
            [...appData.expenses].reverse().slice(0, 20).forEach(tx => {
-               const isIncome = tx.type === 'CREDIT' || tx.category === 'Income';
+               // Updated condition to explicitly include 'Salary'
+               const isIncome = tx.type === 'CREDIT' || tx.category === 'Income' || tx.category === 'Salary';
                const color = isIncome ? 'text-green-600' : 'text-slate-900';
                const icon = getIcon(tx.category);
                let amountDisplay = `₹${tx.amount.toLocaleString()}`;
