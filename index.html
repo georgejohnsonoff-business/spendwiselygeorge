@@ -105,7 +105,7 @@
                 <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                     <div><p class="font-bold text-sm text-slate-800">Privacy Mode</p><p class="text-[10px] text-slate-400">Mask Income</p></div>
                     <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
-                        <input type="checkbox" name="toggle" id="privacyToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" onclick="pushSettings()"/>
+                        <input type="checkbox" name="toggle" id="privacyToggle" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" onclick="pushSettings()"/>
                         <label for="privacyToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
                     </div>
                 </div>
@@ -122,19 +122,19 @@
     </div>
 
     <script>
-        // *** CONFIG: YOUR EXACT DEPLOYMENT URL ***
-        // Ensure this matches the latest deployment of your working script
+        // *** CONFIG: YOUR DEPLOYMENT URL ***
+        // MAKE SURE THIS IS THE URL OF THE SCRIPT YOU JUST DEPLOYED
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTLunx5M42joN_PLbDkHEKJH_bFHJe4Mg0HYBlIMnV7qEC4-xQxcgURPNPCdMp2NIGYA/exec";
         
+        // Defaults privacy to true
         let appData = { balance: 0, expenses: [], budget: 350, privacy: true };
 
-        // Voice Recognition Setup
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
         if(SpeechRecognition) {
             recognition = new SpeechRecognition();
             recognition.continuous = false;
-            recognition.lang = 'en-IN'; // Indian English
+            recognition.lang = 'en-IN';
             recognition.interimResults = false;
             
             recognition.onstart = () => { document.getElementById('micBtn').classList.add('mic-active'); };
@@ -155,7 +155,10 @@
                 appData.balance = parseFloat(data.balance) || 0;
                 appData.expenses = data.expenses || [];
                 appData.budget = parseFloat(data.budget) || 350;
-                appData.privacy = data.privacy;
+                // If server sends null/undefined, it defaults to true because of appData init above, 
+                // but if server sends boolean, we take it.
+                if (data.privacy !== undefined) appData.privacy = data.privacy; 
+                
                 renderUI();
                 renderSettings();
                 setStatus("ONLINE", "text-green-500", "bg-green-500");
@@ -168,12 +171,10 @@
             const txt = input.value;
             if (!txt) return;
 
-            // UI LOADING STATE
             input.value = "";
             input.placeholder = mode === 'add' ? "Adding transaction..." : "Analyzing...";
             disableInput(true);
             
-            // Visual Feedback
             const card = document.getElementById('aiCard');
             const icon = document.getElementById('aiIcon');
             const tip = document.getElementById('aiTipBox');
@@ -191,7 +192,6 @@
             }
 
             try {
-                // Send "mode" to backend
                 const res = await fetch(SCRIPT_URL, { 
                     method: 'POST', 
                     body: JSON.stringify({ action: "process_text", text: txt, mode: mode }) 
