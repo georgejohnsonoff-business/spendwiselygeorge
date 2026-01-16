@@ -17,7 +17,7 @@
         .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
         .loader { border: 2px solid #f3f3f3; border-top: 2px solid #3b82f6; border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Mic Pulse Animation */
+        /* Voice Pulse Animation */
         .mic-active { animation: pulse-red 1.5s infinite; color: #ef4444 !important; }
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
     </style>
@@ -122,12 +122,12 @@
     </div>
 
     <script>
-        // *** CONFIG: DEPLOYMENT URL ***
-        const SCRIPT_URL = "YOUR_DEPLOYED_SCRIPT_URL_HERE"; // PASTE YOUR URL HERE
+        // *** CONFIG: DEPLOYMENT URL (UNCHANGED) ***
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTLunx5M42joN_PLbDkHEKJH_bFHJe4Mg0HYBlIMnV7qEC4-xQxcgURPNPCdMp2NIGYA/exec";
         
         let appData = { balance: 0, expenses: [], budget: 350, privacy: true };
 
-        // Voice Recognition Setup
+        // Voice Recognition Setup (Native Browser API)
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
         if(SpeechRecognition) {
@@ -140,7 +140,8 @@
             recognition.onend = () => { document.getElementById('micBtn').classList.remove('mic-active'); };
             recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript;
-                document.getElementById('omniInput').value = transcript;
+                const current = document.getElementById('omniInput').value;
+                document.getElementById('omniInput').value = current ? current + " " + transcript : transcript;
             };
         }
 
@@ -191,13 +192,13 @@
             try {
                 const res = await fetch(SCRIPT_URL, { 
                     method: 'POST', 
-                    body: JSON.stringify({ action: "process_text", text: txt, mode: mode }) // Sending MODE
+                    body: JSON.stringify({ action: "process_text", text: txt, mode: mode }) 
                 });
                 const data = await res.json();
 
                 if(data.status === "Success") {
                     document.getElementById('aiIcon').innerText = mode === 'add' ? "✅" : "🧠";
-                    document.getElementById('aiTipBox').innerText = data.ai_response; // New consolidated response field
+                    document.getElementById('aiTipBox').innerText = data.ai_response; 
                     
                     if(mode === 'add') {
                         appData.balance = data.balance;
@@ -221,8 +222,6 @@
             recognition.start();
         }
 
-        // ... [Rest of the functions: pushSettings, deleteTx, renderUI, renderSettings, getIcon, setStatus, disableInput, openSettings, closeSettings, exportCSV] STAY THE SAME ...
-        
         async function pushSettings(updateKey = false) {
            const budget = parseFloat(document.getElementById('budgetInput').value);
            const privacy = document.getElementById('privacyToggle').checked;
