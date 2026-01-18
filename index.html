@@ -150,7 +150,6 @@
             recognition.continuous = false;
             recognition.lang = 'en-IN';
             recognition.interimResults = false;
-            
             recognition.onstart = () => { document.getElementById('micBtn').classList.add('mic-active'); };
             recognition.onend = () => { document.getElementById('micBtn').classList.remove('mic-active'); };
             recognition.onresult = (event) => {
@@ -184,7 +183,7 @@
             if (!txt) return;
 
             input.value = "";
-            input.placeholder = mode === 'add' ? "Adding transaction..." : "Analyzing...";
+            input.placeholder = mode === 'add' ? "Adding..." : "Thinking...";
             disableInput(true);
             
             const card = document.getElementById('aiCard');
@@ -195,11 +194,11 @@
             
             if(mode === 'add') {
                 card.className = "card p-4 bg-blue-50 border-blue-200 min-h-[80px]";
-                tip.innerText = "Extracting data & checking budget...";
+                tip.innerText = "Processing...";
                 tip.className = "text-[11px] font-bold text-blue-800 italic leading-relaxed flex-1";
             } else {
                 card.className = "card p-4 bg-purple-50 border-purple-200 min-h-[80px]";
-                tip.innerText = "Reading financial history & thinking...";
+                tip.innerText = "Analyzing history...";
                 tip.className = "text-[11px] font-bold text-purple-800 italic leading-relaxed flex-1";
             }
 
@@ -211,29 +210,59 @@
                 const data = await res.json();
 
                 if(data.status === "Success") {
-                    document.getElementById('aiIcon').innerText = mode === 'add' ? "✅" : "🧠";
-                    document.getElementById('aiTipBox').innerText = data.ai_response; 
-                    
+                    icon.innerText = mode === 'add' ? "✅" : "🧠";
+                    tip.innerText = data.ai_response; 
                     if(mode === 'add') {
                         appData.balance = data.balance;
                         if(data.parsed) appData.expenses.push(data.parsed);
                         renderUI();
                     }
                 } else {
-                    alert("AI Error: " + data.message);
-                    document.getElementById('aiIcon').innerText = "⚠️";
-                    document.getElementById('aiTipBox').innerText = data.message;
+                    throw new Error("API Limit or Error");
                 }
-            } catch (e) { alert("Network Error"); }
+            } catch (e) {
+                if (mode === 'add') {
+                    handleManualFallback(txt);
+                } else {
+                    icon.innerText = "⚠️";
+                    tip.innerText = "AI Offline. Can't analyze right now.";
+                }
+            }
 
-            input.placeholder = "Type or say: 'Coffee 200'...";
             disableInput(false);
+            input.placeholder = "Type or say: 'Coffee 200'...";
             input.focus();
         }
 
-        function toggleVoice() {
-            if(!recognition) { alert("Voice not supported in this browser."); return; }
-            recognition.start();
+        // --- NEW: FALLBACK SYSTEM ---
+        async function handleManualFallback(text) {
+            const amountMatch = text.match(/\d+(\.\d+)?/);
+            const amount = amountMatch ? parseFloat(amountMatch[0]) : 0;
+            const desc = text.replace(amountMatch ? amountMatch[0] : '', '').trim() || "Manual Expense";
+
+            if (amount > 0) {
+                const manualTx = {
+                    date: new Date().toISOString(),
+                    description: desc,
+                    amount: amount,
+                    category: "General",
+                    type: "DEBIT"
+                };
+
+                // Instant UI Update
+                appData.balance -= amount;
+                appData.expenses.push(manualTx);
+                renderUI();
+
+                document.getElementById('aiIcon').innerText = "⚡";
+                document.getElementById('aiTipBox').innerText = `Manual Fallback: Saved "${desc}" (₹${amount})`;
+
+                // Background sync to Google Sheet
+                fetch(SCRIPT_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ action: "manual_add", ...manualTx }) 
+                });
+            }
         }
 
         async function pushSettings(updateKey = false) {
