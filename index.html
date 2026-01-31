@@ -165,6 +165,8 @@
             try {
                 const res = await fetch(SCRIPT_URL);
                 const data = await res.json();
+                console.log("DEBUG: Data from Script:", data); // Debug log to check balance key
+                
                 appData.balance = parseFloat(data.balance) || 0;
                 appData.expenses = data.expenses || [];
                 appData.budget = parseFloat(data.budget) || 350;
@@ -174,7 +176,10 @@
                 renderSettings();
                 setStatus("ONLINE", "text-green-500", "bg-green-500");
                 disableInput(false);
-            } catch (e) { console.error(e); setStatus("OFFLINE", "text-red-500", "bg-red-500"); }
+            } catch (e) { 
+                console.error("INIT ERROR:", e); 
+                setStatus("OFFLINE", "text-red-500", "bg-red-500"); 
+            }
         }
 
         async function sendToAI(mode) {
@@ -213,7 +218,7 @@
                     icon.innerText = mode === 'add' ? "✅" : "🧠";
                     tip.innerText = data.ai_response; 
                     if(mode === 'add') {
-                        appData.balance = data.balance;
+                        appData.balance = parseFloat(data.balance);
                         if(data.parsed) appData.expenses.push(data.parsed);
                         renderUI();
                     }
@@ -234,30 +239,28 @@
             input.focus();
         }
 
-        // --- NEW: FALLBACK SYSTEM ---
         async function handleManualFallback(text) {
             const amountMatch = text.match(/\d+(\.\d+)?/);
             const amount = amountMatch ? parseFloat(amountMatch[0]) : 0;
             const desc = text.replace(amountMatch ? amountMatch[0] : '', '').trim() || "Manual Expense";
+            const type = (desc.toLowerCase().includes('salary') || desc.toLowerCase().includes('income')) ? 'CREDIT' : 'DEBIT';
 
             if (amount > 0) {
                 const manualTx = {
                     date: new Date().toISOString(),
                     description: desc,
                     amount: amount,
-                    category: "General",
-                    type: "DEBIT"
+                    category: type === 'CREDIT' ? 'Income' : 'General',
+                    type: type
                 };
 
-                // Instant UI Update
-                appData.balance -= amount;
+                appData.balance = (type === 'CREDIT') ? (appData.balance + amount) : (appData.balance - amount);
                 appData.expenses.push(manualTx);
                 renderUI();
 
                 document.getElementById('aiIcon').innerText = "⚡";
                 document.getElementById('aiTipBox').innerText = `Manual Fallback: Saved "${desc}" (₹${amount})`;
 
-                // Background sync to Google Sheet
                 fetch(SCRIPT_URL, { 
                     method: 'POST', 
                     body: JSON.stringify({ action: "manual_add", ...manualTx }) 
@@ -282,8 +285,8 @@
            const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: "delete", description: desc, amount: amt }) });
            const data = await res.json();
            if(data.status === "Deleted") {
-               appData.balance = data.balance;
-               appData.expenses = appData.expenses.filter(tx => !(tx.description === desc && tx.amount === amt));
+               appData.balance = parseFloat(data.balance);
+               appData.expenses = appData.expenses.filter(tx => !(tx.description === desc && tx.amount == amt));
                renderUI();
                setStatus("ONLINE", "text-green-500", "bg-green-500");
            }
@@ -295,23 +298,38 @@
         }
 
         function renderUI() {
-           const showBal = !appData.privacy || appData.showBalance;
-           document.getElementById('uiBalance').innerText = showBal ? `₹${appData.balance.toLocaleString()}` : "••••••";
+           // Eye icon (showBalance) overrides the general privacy setting
+           const showBal = appData.showBalance || !appData.privacy;
+           const balDisplay = document.getElementById('uiBalance');
+           
+           if (showBal) {
+               // Using Indian Locale for currency (₹)
+               balDisplay.innerText = `₹${Number(appData.balance).toLocaleString('en-IN')}`;
+           } else {
+               balDisplay.innerText = "••••••";
+           }
+
            const todayIST = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
            const todaySpend = appData.expenses.filter(t => new Date(t.date).toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' }) === todayIST && t.type === 'DEBIT').reduce((sum, t) => sum + parseFloat(t.amount), 0);
            const budgetPct = Math.min((todaySpend / appData.budget) * 100, 100);
            document.getElementById('budgetBar').style.width = `${budgetPct}%`;
            document.getElementById('budgetPercent').innerText = `${Math.round(budgetPct)}%`;
+           
            const list = document.getElementById('txList');
            list.innerHTML = '';
            [...appData.expenses].reverse().slice(0, 20).forEach(tx => {
                const isIncome = tx.type === 'CREDIT' || tx.category === 'Income' || tx.category === 'Salary';
                const color = isIncome ? 'text-green-600' : 'text-slate-900';
                const icon = getIcon(tx.category);
-               let amountDisplay = `₹${tx.amount.toLocaleString()}`;
-               if (isIncome && appData.privacy) { amountDisplay = "••••••"; }
+               let amountDisplay = `₹${Number(tx.amount).toLocaleString('en-IN')}`;
+               if (isIncome && appData.privacy && !appData.showBalance) { amountDisplay = "••••••"; }
                list.innerHTML += `<div class="card p-4 group active:scale-[0.98] transition-transform"><div class="flex justify-between items-center"><div class="flex items-center gap-4"><div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-xl border border-slate-100">${icon}</div><div><p class="font-bold text-sm text-slate-800 leading-tight">${tx.description}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">${tx.category}</p></div></div><div class="text-right"><p class="font-black ${color} text-lg tracking-tight">${isIncome ? '+' : ''}${amountDisplay}</p><button onclick="deleteTx('${tx.description}', ${tx.amount})" class="text-[10px] text-red-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">Delete 🗑️</button></div></div></div>`;
            });
+        }
+
+        function toggleVoice() {
+            if(recognition) recognition.start();
+            else alert("Voice recognition not supported on this browser.");
         }
 
         function renderSettings() { document.getElementById('budgetInput').value = appData.budget; document.getElementById('privacyToggle').checked = appData.privacy; }
