@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>George Finance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .glass-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .btn-press {
+            transition: transform 0.1s;
+        }
+
+        .btn-press:active {
+            transform: scale(0.95);
+        }
+
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #3b82f6;
+        }
+
+        .toggle-checkbox:checked+.toggle-label {
+            background-color: #3b82f6;
+        }
+
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .mic-active {
+            animation: pulse-red 1.5s infinite;
+            color: #ef4444 !important;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+    </style>
+</head>
+
+<body class="pb-40 select-none">
+
+    <nav class="p-5 sticky top-0 z-50 glass-header">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <button onclick="openSettings()"
+                    class="btn-press w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-bold shadow-lg ring-2 ring-slate-100 active:ring-blue-500 transition-all">G</button>
+                <div>
+                    <h2 class="font-bold text-lg leading-tight text-slate-800">George Finance</h2>
+                    <div id="statusDot" class="text-[10px] font-bold text-orange-500 flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> INITIALIZING...
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="syncBank()" id="syncBtn"
+                    class="text-xs font-bold text-purple-600 bg-purple-50 px-4 py-2 rounded-full hover:bg-purple-100 transition-colors">SYNC
+                    BANK</button>
+                <button onclick="init()"
+                    class="text-xs font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors">REFRESH</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="px-5 mt-4">
+        <div class="card p-6 bg-slate-900 text-white border-none relative overflow-hidden shadow-2xl">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full blur-3xl opacity-20 -mr-10 -mt-10">
+            </div>
+
+            <div class="flex justify-between items-center mb-1 relative z-10">
+                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Total Balance</p>
+                <button onclick="toggleBalance()"
+                    class="text-white hover:text-blue-300 transition-colors p-2 bg-slate-800/50 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                </button>
+            </div>
+
+            <h1 id="uiBalance" class="text-5xl font-black tracking-tighter mb-4 relative z-10">...</h1>
+
+            <div class="relative pt-1 z-10">
+                <div class="flex mb-2 items-center justify-between">
+                    <div><span
+                            class="text-[10px] font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-200 bg-blue-900"
+                            id="budgetLabel">Budget Usage</span></div>
+                    <div class="text-right"><span class="text-[10px] font-semibold inline-block text-blue-200"
+                            id="budgetPercent">0%</span></div>
+                </div>
+                <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-slate-700">
+                    <div id="budgetBar" style="width:0%" class="bg-blue-500 transition-all duration-1000"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-5 mt-6">
+        <div class="grid grid-cols-2 gap-4">
+            <div class="card p-4 bg-white">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Investments</p>
+                <h3 id="uiPortfolio" class="text-xl font-black text-slate-800">₹0</h3>
+                <p class="text-[10px] text-green-500 font-bold mt-1">MFapi.in Linked</p>
+            </div>
+            <div class="card p-4 bg-white">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Bank Balance</p>
+                <h3 id="uiBankBal" class="text-xl font-black text-slate-800">₹0</h3>
+                <p class="text-[10px] text-purple-500 font-bold mt-1">Fold Connected</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-5 mt-6">
+        <div id="aiCard" class="card p-4 bg-slate-50 border-slate-200 min-h-[80px] transition-colors duration-300">
+            <div class="flex gap-4 items-center">
+                <div id="aiIcon" class="text-2xl flex-shrink-0">🤖</div>
+                <div id="aiTipBox" class="text-[11px] font-bold text-slate-600 italic leading-relaxed flex-1">
+                    Ready. Use "Add" for expenses or "Ask" for analysis.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-5 mt-6 sticky top-24 z-40">
+        <div class="card p-2 shadow-xl ring-4 ring-slate-50/80 backdrop-blur-sm">
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center bg-slate-50 rounded-xl border border-slate-100 px-2">
+                    <input type="text" id="omniInput" placeholder="Type or say: 'Coffee 200'..." disabled
+                        class="flex-1 p-3 bg-transparent outline-none font-bold text-slate-700 placeholder:text-slate-300 placeholder:font-normal text-lg disabled:opacity-50"
+                        onkeydown="if(event.key==='Enter') sendToAI('add')">
+                    <button id="micBtn" onclick="toggleVoice()"
+                        class="p-2 rounded-full text-slate-400 hover:text-blue-600 hover:bg-blue-100 transition-all btn-press flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="flex gap-2">
+                    <button id="addBtn" onclick="sendToAI('add')" disabled
+                        class="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold text-sm btn-press shadow-md disabled:opacity-50">
+                        <span class="flex items-center justify-center gap-2">➕ ADD</span>
+                    </button>
+                    <button id="askBtn" onclick="sendToAI('ask')" disabled
+                        class="flex-1 bg-purple-100 text-purple-700 border border-purple-200 py-3 rounded-xl font-bold text-sm btn-press shadow-sm hover:bg-purple-200 disabled:opacity-50">
+                        <span class="flex items-center justify-center gap-2">🧠 ASK</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-5 mt-8">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 ml-1">Recent Bank Data (Fold)</h3>
+        <div id="bankTxList" class="space-y-3 pb-6 relative">
+            <div class="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center"
+                id="bankLoader">
+                <span class="text-[10px] font-bold text-slate-400">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-5 mt-8">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 ml-1">Expenses (Sheet)</h3>
+        <div id="txList" class="space-y-3 pb-24"></div>
+    </div>
+
+    <div id="settingsPanel" class="fixed inset-0 bg-black/50 z-[60] hidden backdrop-blur-sm transition-opacity"
+        onclick="closeSettings(event)">
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-[32px] p-8 shadow-2xl transform transition-transform duration-300 translate-y-full"
+            id="settingsContent">
+            <div class="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6"></div>
+            <h2 class="text-2xl font-black text-slate-900 mb-6">Settings</h2>
+
+            <div class="space-y-6 max-h-[70vh] overflow-y-auto pb-20">
+                <!-- Fold Login Section -->
+                <div class="p-4 bg-purple-50 rounded-2xl border border-purple-100">
+                    <h3 class="font-bold text-purple-900 mb-2">Connect Fold</h3>
+                    <div id="foldLoginInputs">
+                        <input type="tel" id="foldPhone" placeholder="Phone (99...)"
+                            class="w-full p-3 bg-white rounded-xl mb-2 text-sm">
+                        <button onclick="sendFoldOtp()"
+                            class="w-full bg-purple-600 text-white p-3 rounded-xl font-bold text-sm">Send OTP</button>
+                    </div>
+                    <div id="foldOtpInputs" class="hidden">
+                        <input type="text" id="foldOtp" placeholder="Enter OTP"
+                            class="w-full p-3 bg-white rounded-xl mb-2 text-sm text-center tracking-widest">
+                        <button onclick="verifyFoldOtp()"
+                            class="w-full bg-green-600 text-white p-3 rounded-xl font-bold text-sm">Verify &
+                            Login</button>
+                    </div>
+                    <p id="foldStatusMsg" class="text-[10px] text-center mt-2 font-bold text-purple-400"></p>
+                </div>
+
+                <!-- Mutual Funds Section -->
+                <div class="p-4 bg-green-50 rounded-2xl border border-green-100">
+                    <h3 class="font-bold text-green-900 mb-2">Mutual Fund Holdings</h3>
+                    <div id="mfList" class="space-y-2 mb-2"></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="mfCode" placeholder="Scheme Code"
+                            class="flex-1 p-3 bg-white rounded-xl text-sm">
+                        <input type="number" id="mfUnits" placeholder="Units"
+                            class="w-20 p-3 bg-white rounded-xl text-sm">
+                    </div>
+                    <button onclick="addHolding()"
+                        class="w-full mt-2 bg-green-600 text-white p-3 rounded-xl font-bold text-sm">Add
+                        Holding</button>
+                    <button onclick="saveHoldings()"
+                        class="w-full mt-2 bg-slate-900 text-white p-3 rounded-xl font-bold text-sm">Save &
+                        Update</button>
+                </div>
+
+                <!-- Existing Settings -->
+                <div class="pt-4 border-t border-slate-100">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Daily Budget</label>
+                    <input type="number" id="budgetInput"
+                        class="w-full p-4 bg-slate-100 rounded-xl font-bold text-slate-900 outline-none focus:ring-2 ring-blue-500"
+                        onchange="pushSettings()">
+                </div>
+                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div>
+                        <p class="font-bold text-sm text-slate-800">Privacy Mode</p>
+                        <p class="text-[10px] text-slate-400">Mask Income</p>
+                    </div>
+                    <div
+                        class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in flex-shrink-0">
+                        <input type="checkbox" name="toggle" id="privacyToggle" checked
+                            class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                            onclick="pushSettings()" />
+                        <label for="privacyToggle"
+                            class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+                    </div>
+                </div>
+                <div class="pt-4 border-t border-slate-100">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Gemini API Key</label>
+                    <input type="password" id="geminiKeyInput" placeholder="Enter new key"
+                        class="w-full p-3 bg-slate-50 rounded-lg text-xs font-mono outline-none mb-2">
+                    <button onclick="pushSettings(true)"
+                        class="w-full p-3 bg-slate-900 text-white rounded-lg font-bold text-xs">Save Key to
+                        Cloud</button>
+                </div>
+                <div class="mt-4">
+                    <button onclick="exportCSV()"
+                        class="w-full p-4 bg-slate-100 rounded-xl font-bold text-xs text-slate-600 active:bg-slate-200">📄
+                        Download Data</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTLunx5M42joN_PLbDkHEKJH_bFHJe4Mg0HYBlIMnV7qEC4-xQxcgURPNPCdMp2NIGYA/exec";
+
+        let appData = { balance: 0, expenses: [], budget: 350, privacy: true, showBalance: false, bankBalance: 0, portfolioValue: 0 };
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-IN';
+            recognition.interimResults = false;
+            recognition.onstart = () => { document.getElementById('micBtn').classList.add('mic-active'); };
+            recognition.onend = () => { document.getElementById('micBtn').classList.remove('mic-active'); };
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                const current = document.getElementById('omniInput').value;
+                document.getElementById('omniInput').value = current ? current + " " + transcript : transcript;
+            };
+        }
+
+        async function init() {
+            setStatus("SYNCING...", "text-orange-500", "bg-orange-500");
+            disableInput(true);
+
+            // Start parallel fetches
+            fetchBankTransactions();
+            fetchPortfolio();
+
+            try {
+                const res = await fetch(SCRIPT_URL);
+                const data = await res.json();
+                console.log("DEBUG: Data from Script:", data);
+
+                appData.balance = parseFloat(data.balance) || 0;
+                appData.expenses = data.expenses || [];
+                appData.budget = parseFloat(data.budget) || 350;
+                if (data.privacy !== undefined) appData.privacy = data.privacy;
+
+                renderUI();
+                renderSettings();
+                setStatus("ONLINE", "text-green-500", "bg-green-500");
+                disableInput(false);
+            } catch (e) {
+                console.error("INIT ERROR:", e);
+                setStatus("OFFLINE", "text-red-500", "bg-red-500");
+            }
+        }
+
+        async function sendToAI(mode) {
+            const input = document.getElementById('omniInput');
+            const txt = input.value;
+            if (!txt) return;
+
+            input.value = "";
+            input.placeholder = mode === 'add' ? "Adding..." : "Thinking...";
+            disableInput(true);
+
+            const card = document.getElementById('aiCard');
+            const icon = document.getElementById('aiIcon');
+            const tip = document.getElementById('aiTipBox');
+
+            icon.innerHTML = '<div class="loader"></div>';
+
+            if (mode === 'add') {
+                card.className = "card p-4 bg-blue-50 border-blue-200 min-h-[80px]";
+                tip.innerText = "Processing...";
+                tip.className = "text-[11px] font-bold text-blue-800 italic leading-relaxed flex-1";
+            } else {
+                card.className = "card p-4 bg-purple-50 border-purple-200 min-h-[80px]";
+                tip.innerText = "Analyzing history...";
+                tip.className = "text-[11px] font-bold text-purple-800 italic leading-relaxed flex-1";
+            }
+
+            try {
+                const res = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: "process_text", text: txt, mode: mode })
+                });
+                const data = await res.json();
+
+                if (data.status === "Success") {
+                    icon.innerText = mode === 'add' ? "✅" : "🧠";
+                    tip.innerText = data.ai_response;
+                    if (mode === 'add') {
+                        appData.balance = parseFloat(data.balance);
+                        if (data.parsed) appData.expenses.push(data.parsed);
+                        renderUI();
+                    }
+                } else {
+                    throw new Error("API Limit or Error");
+                }
+            } catch (e) {
+                if (mode === 'add') {
+                    handleManualFallback(txt);
+                } else {
+                    icon.innerText = "⚠️";
+                    tip.innerText = "AI Offline. Can't analyze right now.";
+                }
+            }
+
+            disableInput(false);
+            input.placeholder = "Type or say: 'Coffee 200'...";
+            input.focus();
+        }
+
+        async function handleManualFallback(text) {
+            const amountMatch = text.match(/\d+(\.\d+)?/);
+            const amount = amountMatch ? parseFloat(amountMatch[0]) : 0;
+            const desc = text.replace(amountMatch ? amountMatch[0] : '', '').trim() || "Manual Expense";
+            const type = (desc.toLowerCase().includes('salary') || desc.toLowerCase().includes('income')) ? 'CREDIT' : 'DEBIT';
+
+            if (amount > 0) {
+                const manualTx = {
+                    date: new Date().toISOString(),
+                    description: desc,
+                    amount: amount,
+                    category: type === 'CREDIT' ? 'Income' : 'General',
+                    type: type
+                };
+
+                appData.balance = (type === 'CREDIT') ? (appData.balance + amount) : (appData.balance - amount);
+                appData.expenses.push(manualTx);
+                renderUI();
+
+                document.getElementById('aiIcon').innerText = "⚡";
+                document.getElementById('aiTipBox').innerText = `Manual Fallback: Saved "${desc}" (₹${amount})`;
+
+                fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: "manual_add", ...manualTx })
+                });
+            }
+        }
+
+        async function pushSettings(updateKey = false) {
+            const budget = parseFloat(document.getElementById('budgetInput').value);
+            const privacy = document.getElementById('privacyToggle').checked;
+            const key = document.getElementById('geminiKeyInput').value;
+            const payload = { action: "save_settings", budget: budget, privacy: privacy };
+            if (updateKey && key) payload.geminiKey = key;
+            appData.budget = budget; appData.privacy = privacy; renderUI();
+            await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+            if (updateKey) { alert("Key Saved!"); document.getElementById('geminiKeyInput').value = ""; }
+        }
+
+        async function deleteTx(desc, amt) {
+            if (!confirm(`Delete "${desc}"?`)) return;
+            setStatus("DELETING...", "text-orange-500", "bg-orange-500");
+            const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: "delete", description: desc, amount: amt }) });
+            const data = await res.json();
+            if (data.status === "Deleted") {
+                appData.balance = parseFloat(data.balance);
+                appData.expenses = appData.expenses.filter(tx => !(tx.description === desc && tx.amount == amt));
+                renderUI();
+                setStatus("ONLINE", "text-green-500", "bg-green-500");
+            }
+        }
+
+        function toggleBalance() {
+            appData.showBalance = !appData.showBalance;
+            renderUI();
+        }
+
+        function renderUI() {
+            // Eye icon (showBalance) overrides the general privacy setting
+            const showBal = appData.showBalance || !appData.privacy;
+
+            // Update Cards
+            const updateDisplay = (id, val) => {
+                const el = document.getElementById(id);
+                if (showBal && el) el.innerText = `₹${Number(val).toLocaleString('en-IN')}`;
+                else if (el) el.innerText = "••••••";
+            };
+
+            const totalBal = appData.balance + (appData.bankBalance || 0) + (appData.portfolioValue || 0);
+            updateDisplay('uiBalance', totalBal);
+            updateDisplay('uiBankBal', appData.bankBalance || 0);
+            updateDisplay('uiPortfolio', appData.portfolioValue || 0);
+
+            const balDisplay = document.getElementById('uiBalance');
+
+            if (showBal) {
+                // Using Indian Locale for currency (₹)
+                balDisplay.innerText = `₹${Number(appData.balance).toLocaleString('en-IN')}`;
+            } else {
+                balDisplay.innerText = "••••••";
+            }
+
+            const todayIST = new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
+            const todaySpend = appData.expenses.filter(t => new Date(t.date).toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' }) === todayIST && t.type === 'DEBIT').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            const budgetPct = Math.min((todaySpend / appData.budget) * 100, 100);
+            document.getElementById('budgetBar').style.width = `${budgetPct}%`;
+            document.getElementById('budgetPercent').innerText = `${Math.round(budgetPct)}%`;
+
+            const list = document.getElementById('txList');
+            list.innerHTML = '';
+            [...appData.expenses].reverse().slice(0, 20).forEach(tx => {
+                const isIncome = tx.type === 'CREDIT' || tx.category === 'Income' || tx.category === 'Salary';
+                const color = isIncome ? 'text-green-600' : 'text-slate-900';
+                const icon = getIcon(tx.category);
+                let amountDisplay = `₹${Number(tx.amount).toLocaleString('en-IN')}`;
+                if (isIncome && appData.privacy && !appData.showBalance) { amountDisplay = "••••••"; }
+                list.innerHTML += `<div class="card p-4 group active:scale-[0.98] transition-transform"><div class="flex justify-between items-center"><div class="flex items-center gap-4"><div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-xl border border-slate-100">${icon}</div><div><p class="font-bold text-sm text-slate-800 leading-tight">${tx.description}</p><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">${tx.category}</p></div></div><div class="text-right"><p class="font-black ${color} text-lg tracking-tight">${isIncome ? '+' : ''}${amountDisplay}</p><button onclick="deleteTx('${tx.description}', ${tx.amount})" class="text-[10px] text-red-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">Delete 🗑️</button></div></div></div>`;
+            });
+        }
+
+        function toggleVoice() {
+            if (recognition) recognition.start();
+            else alert("Voice recognition not supported on this browser.");
+        }
+
+        function renderSettings() { document.getElementById('budgetInput').value = appData.budget; document.getElementById('privacyToggle').checked = appData.privacy; }
+        function getIcon(cat) { const map = { 'Income': '💰', 'Food': '🍔', 'Transport': '⛽', 'Tech': '⚡', 'Invest': '📈' }; return map[cat] || '🛍️'; }
+        function setStatus(msg, txtColor, dotColor) { const el = document.getElementById('statusDot'); el.innerHTML = `<span class="w-2 h-2 rounded-full ${dotColor} ${msg.includes('...') ? 'animate-pulse' : ''}"></span> ${msg}`; el.className = `text-[10px] font-bold flex items-center gap-1 ${txtColor}`; }
+        function disableInput(bool) { document.getElementById('omniInput').disabled = bool; document.getElementById('addBtn').disabled = bool; document.getElementById('askBtn').disabled = bool; }
+        function openSettings() { document.getElementById('settingsPanel').classList.remove('hidden'); setTimeout(() => { document.getElementById('settingsContent').classList.remove('translate-y-full'); }, 10); }
+        function closeSettings(e) { if (e.target.id === 'settingsPanel') { document.getElementById('settingsContent').classList.add('translate-y-full'); setTimeout(() => { document.getElementById('settingsPanel').classList.add('hidden'); }, 300); } }
+        function exportCSV() {
+            let csv = "Date,Description,Amount,Category,Type\n" + appData.expenses.map(row => `${row.date},${row.description},${row.amount},${row.category},${row.type}`).join("\n");
+            let blob = new Blob([csv], { type: 'text/csv' });
+            let url = window.URL.createObjectURL(blob);
+            let a = document.createElement('a'); a.href = url; a.download = 'expenses.csv'; a.click();
+        }
+
+        async function fetchBankTransactions() {
+            try {
+                const res = await fetch('/api/transactions');
+                const data = await res.json();
+                const list = document.getElementById('bankTxList');
+                document.getElementById('bankLoader').classList.add('hidden');
+
+                if (Array.isArray(data) && data.length > 0) {
+                    let bankBalance = data[0].current_balance || 0;
+                    appData.bankBalance = bankBalance;
+
+                    list.innerHTML = '';
+                    data.slice(0, 10).forEach(tx => {
+                        const date = new Date(tx.timestamp).toLocaleDateString();
+                        const isCredit = tx.amount > 0; // Assuming positive is credit, negative debit
+                        const color = isCredit ? 'text-green-600' : 'text-slate-900';
+                        list.innerHTML += `<div class="card p-3 bg-white flex justify-between items-center"><div class="flex items-center gap-3"><div class="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center text-sm border border-purple-100">🏦</div><div><p class="font-bold text-xs text-slate-800">${tx.merchant || tx.description}</p><p class="text-[9px] font-bold text-slate-400 uppercase">${date}</p></div></div><p class="font-black ${color} text-sm">${isCredit ? '+' : ''}₹${Math.abs(tx.amount)}</p></div>`;
+                    });
+                } else {
+                    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No bank data found. Try syncing.</p>';
+                }
+                renderUI();
+            } catch (e) {
+                console.error("Bank Fetch Error", e);
+                document.getElementById('bankLoader').innerHTML = '<span class="text-red-500 text-xs">Error</span>';
+            }
+        }
+
+        async function fetchPortfolio() {
+            try {
+                // Mock holdings for now if not set
+                // In production, this should come from user settings or backend
+                const res = await fetch('/api/portfolio');
+                const data = await res.json();
+                if (data.total_value) {
+                    appData.portfolioValue = data.total_value;
+                    renderUI();
+                }
+            } catch (e) {
+                console.error("Portfolio Fetch Error", e);
+            }
+        }
+
+        async function syncBank() {
+            setStatus("SYNCING BANK...", "text-purple-500", "bg-purple-500");
+            try {
+                const res = await fetch('/api/sync', { method: 'POST' });
+                if (res.ok) {
+                    setTimeout(() => {
+                        fetchBankTransactions();
+                        setStatus("ONLINE", "text-green-500", "bg-green-500");
+                    }, 5000); // Wait a bit for unfold to finish
+                }
+            } catch (e) {
+                setStatus("SYNC FAILED", "text-red-500", "bg-red-500");
+            }
+        }
+
+        // --- Auth & Holdings JS ---
+        let currentHoldings = [];
+
+        async function checkFoldStatus() {
+            try {
+                const res = await fetch('/api/fold/status');
+                const data = await res.json();
+                if (data.logged_in) {
+                    document.getElementById('foldLoginInputs').classList.add('hidden');
+                    document.getElementById('foldStatusMsg').innerText = "✅ Logged in to Fold";
+                }
+            } catch (e) { }
+        }
+
+        async function sendFoldOtp() {
+            const phone = document.getElementById('foldPhone').value;
+            try {
+                const res = await fetch('/api/fold/login', {
+                    method: 'POST', body: JSON.stringify({ phone: phone }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (res.ok) {
+                    document.getElementById('foldLoginInputs').classList.add('hidden');
+                    document.getElementById('foldOtpInputs').classList.remove('hidden');
+                    document.getElementById('foldStatusMsg').innerText = "OTP Sent!";
+                }
+            } catch (e) { alert("Failed to send OTP"); }
+        }
+
+        async function verifyFoldOtp() {
+            const phone = document.getElementById('foldPhone').value;
+            const otp = document.getElementById('foldOtp').value;
+            try {
+                const res = await fetch('/api/fold/verify', {
+                    method: 'POST', body: JSON.stringify({ phone: phone, otp: otp }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (res.ok) {
+                    document.getElementById('foldOtpInputs').classList.add('hidden');
+                    document.getElementById('foldStatusMsg').innerText = "✅ Successfully Logged In!";
+                    syncBank();
+                } else { alert("Verification Failed"); }
+            } catch (e) { alert("Error verifying OTP"); }
+        }
+
+        async function fetchHoldings() {
+            try {
+                const res = await fetch('/api/holdings');
+                currentHoldings = await res.json();
+                renderHoldings();
+            } catch (e) { }
+        }
+
+        function renderHoldings() {
+            const list = document.getElementById('mfList');
+            list.innerHTML = currentHoldings.map((h, i) =>
+                `<div class="flex justify-between text-xs bg-white p-2 rounded border"><span class="font-mono">${h.scheme_code}</span><span>${h.units} units</span><button onclick="removeHolding(${i})" class="text-red-500">x</button></div>`
+            ).join('');
+        }
+
+        function addHolding() {
+            const code = document.getElementById('mfCode').value;
+            const units = parseFloat(document.getElementById('mfUnits').value);
+            if (code && units) {
+                currentHoldings.push({ scheme_code: code, units: units });
+                renderHoldings();
+                document.getElementById('mfCode').value = '';
+                document.getElementById('mfUnits').value = '';
+            }
+        }
+
+        function removeHolding(i) {
+            currentHoldings.splice(i, 1);
+            renderHoldings();
+        }
+
+        async function saveHoldings() {
+            await fetch('/api/holdings', {
+                method: 'POST', body: JSON.stringify(currentHoldings),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            alert("Holdings Saved!");
+            fetchPortfolio();
+        }
+
+        // Init additions
+        checkFoldStatus();
+        fetchHoldings();
+
+        init();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,6 @@
+unfold_config.yaml
+holdings.json
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/
